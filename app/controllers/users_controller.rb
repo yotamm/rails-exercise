@@ -36,6 +36,12 @@ class UsersController < ApplicationController
     end
   end
 
+  def update
+    user = User.find_by(id: params.fetch(:id))
+    user.update(params.require(:user).permit(:first_name, :last_name, :email, :password)) if (user && user.token == session[:token])
+    render(json: user)
+  end
+
   private def get_display_ready_user(user)
     user.as_json(only: DISPLAY_FIELDS)
   end
