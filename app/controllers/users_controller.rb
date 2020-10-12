@@ -52,7 +52,8 @@ class UsersController < ApplicationController
 
   private def validate_user
     not_found_error unless @user
-    permission_denied_error unless @user.token == get_token
+    token = get_token
+    permission_denied_error unless token && @user.token == token
     true
   end
 
