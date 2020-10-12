@@ -10,39 +10,59 @@ class UsersController < ApplicationController
   end
 
   def show
-    user = User.find_by(id: params[:id])
-    if user
-      render(json: get_display_ready_user(user))
-    else
-      not_found
-    end
-  end
-
-  def new
+    user = get_user_by_id
+    render(json: get_display_ready_user(user)) if validate_user(user)
   end
 
   def create
-    user = User.create!(params.require(:user).permit(:first_name, :last_name, :email, :password))
+    user = User.create!(permitted_params)
     render(json: get_display_ready_user(user))
   end
 
   def sign_in
     user = User.find_by(email: params.fetch(:email))
-    if user.password == params.fetch(:password)
-      token = SecureRandom.uuid
-      user.update(token: token)
-      session[:token] = token
-      render(json: get_display_ready_user(user))
-    end
+    permission_denied_error unless user.password == params.fetch(:password)
+    set_token(user)
+    render(json: get_display_ready_user(user))
   end
 
   def update
-    user = User.find_by(id: params.fetch(:id))
-    user.update(params.require(:user).permit(:first_name, :last_name, :email, :password)) if (user && user.token == session[:token])
+    user = get_user_by_id
+    user.update(permitted_params) if validate_user(user)
     render(json: get_display_ready_user(user))
+  end
+
+  def sign_out
+    user = get_user_by_id
+    user.update(token: nil)
+    cookies.clear
   end
 
   private def get_display_ready_user(user)
     user.as_json(only: DISPLAY_FIELDS)
+  end
+
+  private def permitted_params
+    params.require(:user).permit(:first_name, :last_name, :email, :password)
+  end
+
+  private def get_user_by_id
+    User.find_by(id: params.fetch(:id))
+  end
+
+  private def validate_user(user)
+    not_found_error unless user
+    permission_denied_error unless user.token == get_token
+    true
+  end
+
+  private def get_token
+    cookies[:token]
+  end
+
+  private def set_token(user)
+    token = SecureRandom.uuid
+    user.update(token: token)
+    cookies[:token] = token
   end
 end
